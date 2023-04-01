@@ -1,0 +1,3 @@
+[submodule "tests/ANNtest/parlaylib"]
+	path = tests/ANNtest/parlaylib
+	url = git@github.com:cmuparlay/parlaylib.git
