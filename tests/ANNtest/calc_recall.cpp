@@ -8,6 +8,7 @@
 #include <queue>
 #include <map>
 #include <chrono>
+#include <atomic>
 #include <stdexcept>
 #include "dist.hpp"
 #include "../../hnswlib/hnswlib.h"
@@ -20,6 +21,8 @@ using namespace hnswlib;
 parlay::sequence<size_t> per_visited;
 parlay::sequence<size_t> per_eval;
 parlay::sequence<size_t> per_size_C;
+
+std::atomic<size_t> cnt_cmp_global;
 
 template<typename T>
 point_converter_default<T> to_point;
@@ -67,6 +70,8 @@ double output_recall(HierarchicalNSW<int> &g, parlay::internal::timer &t, uint32
 	per_size_C.resize(cnt_query);
 	//std::vector<std::vector<std::pair<uint32_t,float>>> res(cnt_query);
 	parlay::sequence<parlay::sequence<std::pair<uint32_t,float>>> res(cnt_query);
+	g.setEf(ef);
+	g.limit_cmp = limit_eval.value_or(100000000);
 	if(warmup)
 	{
 		parlay::parallel_for(0, cnt_query, [&](size_t i){
@@ -81,6 +86,7 @@ double output_recall(HierarchicalNSW<int> &g, parlay::internal::timer &t, uint32
 	g.total_eval.assign(parlay::num_workers(), 0);
 	g.total_size_C.assign(parlay::num_workers(), 0);
 	*/
+	cnt_cmp_global = 0;
 
 	parlay::parallel_for(0, cnt_query, [&](size_t i){
 		search_control ctrl{};
@@ -183,7 +189,8 @@ double output_recall(HierarchicalNSW<int> &g, parlay::internal::timer &t, uint32
 		ret_val = double(total_shot)/cnt_query/k;
 	}
 	printf("# visited: %lu\n", parlay::reduce(per_visited,parlay::addm<size_t>{}));
-	printf("# eval: %lu\n", parlay::reduce(per_eval,parlay::addm<size_t>{}));
+	//printf("# eval: %lu\n", parlay::reduce(per_eval,parlay::addm<size_t>{}));
+	printf("# eval: %lu\n", cnt_cmp_global.load());
 	printf("size of C: %lu\n", parlay::reduce(per_size_C,parlay::addm<size_t>{}));
 	if(limit_eval)
 		printf("limit the number of evaluated nodes : %u\n", *limit_eval);
@@ -315,7 +322,8 @@ void output_recall(HierarchicalNSW<int> &g, commandLine param, parlay::internal:
 		for(auto k : cnt_rank_cmp)
 		{
 			const auto base_shot = get_best(k,ef_min);
-			const auto base_eval = parlay::reduce(per_eval,parlay::addm<size_t>{});
+			//const auto base_eval = parlay::reduce(per_eval,parlay::addm<size_t>{});
+			const auto base_eval = cnt_cmp_global.load()/cnt_query;
 			auto base_it = std::lower_bound(threshold.begin(), threshold.end(), base_shot);
 			uint32_t l_last = 0; // limit #eval to 0 must keep the recall below the threshold
 			for(auto it=threshold.begin(); it!=base_it; ++it)
