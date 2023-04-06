@@ -8,6 +8,9 @@
 #include <assert.h>
 #include <unordered_set>
 #include <list>
+#include <cstdint>
+#include <atomic>
+extern std::atomic<size_t> cnt_cmp_global;
 
 namespace hnswlib {
 typedef unsigned int tableint;
@@ -16,6 +19,8 @@ typedef unsigned int linklistsizeint;
 template<typename dist_t>
 class HierarchicalNSW : public AlgorithmInterface<dist_t> {
  public:
+	size_t limit_cmp = 100000000;
+
     static const tableint MAX_LABEL_OPERATION_LOCKS = 65536;
     static const unsigned char DELETE_MARK = 0x01;
 
@@ -132,7 +137,8 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
         if (linkLists_ == nullptr)
             throw std::runtime_error("Not enough memory: HierarchicalNSW failed to allocate linklists");
         size_links_per_element_ = maxM_ * sizeof(tableint) + sizeof(linklistsizeint);
-        mult_ = 1 / log(1.0 * M_);
+        // mult_ = 1 / log(1.0 * M_);
+        mult_ = 0.36;
         revSize_ = 1.0 / mult_;
     }
 
@@ -301,9 +307,12 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
         std::priority_queue<std::pair<dist_t, tableint>, std::vector<std::pair<dist_t, tableint>>, CompareByFirst> top_candidates;
         std::priority_queue<std::pair<dist_t, tableint>, std::vector<std::pair<dist_t, tableint>>, CompareByFirst> candidate_set;
 
+		size_t cnt_cmp = 0;
+
         dist_t lowerBound;
         if ((!has_deletions || !isMarkedDeleted(ep_id)) && ((!isIdAllowed) || (*isIdAllowed)(getExternalLabel(ep_id)))) {
             dist_t dist = fstdistfunc_(data_point, getDataByInternalId(ep_id), dist_func_param_);
+			cnt_cmp++;
             lowerBound = dist;
             top_candidates.emplace(dist, ep_id);
             candidate_set.emplace(-dist, ep_id);
@@ -314,7 +323,7 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
 
         visited_array[ep_id] = visited_array_tag;
 
-        while (!candidate_set.empty()) {
+        while (!candidate_set.empty() && cnt_cmp<limit_cmp) {
             std::pair<dist_t, tableint> current_node_pair = candidate_set.top();
 
             if ((-current_node_pair.first) > lowerBound &&
@@ -352,6 +361,7 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
 
                     char *currObj1 = (getDataByInternalId(candidate_id));
                     dist_t dist = fstdistfunc_(data_point, currObj1, dist_func_param_);
+					cnt_cmp++;
 
                     if (top_candidates.size() < ef || lowerBound > dist) {
                         candidate_set.emplace(-dist, candidate_id);
@@ -373,7 +383,7 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
                 }
             }
         }
-
+		cnt_cmp_global += cnt_cmp;
         visited_list_pool_->releaseVisitedList(vl);
         return top_candidates;
     }
@@ -1185,8 +1195,11 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
         std::priority_queue<std::pair<dist_t, labeltype >> result;
         if (cur_element_count == 0) return result;
 
+		size_t cnt_cmp = 0;
+
         tableint currObj = enterpoint_node_;
         dist_t curdist = fstdistfunc_(query_data, getDataByInternalId(enterpoint_node_), dist_func_param_);
+		cnt_cmp++;
 
         for (int level = maxlevel_; level > 0; level--) {
             bool changed = true;
@@ -1205,6 +1218,7 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
                     if (cand < 0 || cand > max_elements_)
                         throw std::runtime_error("cand error");
                     dist_t d = fstdistfunc_(query_data, getDataByInternalId(cand), dist_func_param_);
+					cnt_cmp++;
 
                     if (d < curdist) {
                         curdist = d;
@@ -1232,6 +1246,7 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
             result.push(std::pair<dist_t, labeltype>(rez.first, getExternalLabel(rez.second)));
             top_candidates.pop();
         }
+		cnt_cmp_global += cnt_cmp;
         return result;
     }
 
