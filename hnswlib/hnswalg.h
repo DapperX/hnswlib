@@ -1282,5 +1282,36 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
         }
         std::cout << "integrity ok, checked " << connections_checked << " connections\n";
     }
+
+    size_t cnt_vertex(uint32_t l) const
+    {
+        auto cnt_each = parlay::delayed_seq<size_t>(cur_element_count, [&](size_t i){
+            return uint32_t(element_levels_[i])<l? 0: 1;
+        });
+        return parlay::reduce(cnt_each, parlay::addm<size_t>());
+    }
+
+    size_t cnt_degree(uint32_t l) const
+    {
+        auto cnt_each = parlay::delayed_seq<size_t>(cur_element_count, [&](size_t i){
+            return uint32_t(element_levels_[i])<l? 0:
+                getListCount(get_linklist_at_level(i,l));
+        });
+        return parlay::reduce(cnt_each, parlay::addm<size_t>());
+    }
+
+    size_t get_degree_max(uint32_t l) const
+    {
+        auto cnt_each = parlay::delayed_seq<size_t>(cur_element_count, [&](size_t i){
+            return uint32_t(element_levels_[i])<l? 0:
+                getListCount(get_linklist_at_level(i,l));
+        });
+        return parlay::reduce(cnt_each, parlay::maxm<size_t>());
+    }
+
+    uint32_t get_height() const
+    {
+        return maxlevel_;
+    }
 };
 }  // namespace hnswlib

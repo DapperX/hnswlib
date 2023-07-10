@@ -352,9 +352,9 @@ void run_test(commandLine parameter) // intend to be pass-by-value manner
 	const float m_l = parameter.getOptionDoubleValue("-ml", 0.36);
 	const uint32_t m = parameter.getOptionIntValue("-m", 40);
 	const uint32_t efc = parameter.getOptionIntValue("-efc", 60);
-	const float alpha = parameter.getOptionDoubleValue("-alpha", 1);
-	const float batch_base = parameter.getOptionDoubleValue("-b", 2);
-	const bool do_fixing = !!parameter.getOptionIntValue("-f", 0);
+	// const float alpha = parameter.getOptionDoubleValue("-alpha", 1);
+	// const float batch_base = parameter.getOptionDoubleValue("-b", 2);
+	// const bool do_fixing = !!parameter.getOptionIntValue("-f", 0);
 	const char *file_out = parameter.getOptionValue("-out");
 	
 	parlay::internal::timer t("HNSW", true);
@@ -375,7 +375,8 @@ void run_test(commandLine parameter) // intend to be pass-by-value manner
 		appr_alg->addPoint((void*)ps[i].coord, (size_t)ps[i].id);
 	});
 	t.next("Build index");
-	/*
+
+	auto &g = *appr_alg;
 	const uint32_t height = g.get_height();
 	printf("Highest level: %u\n", height);
 	puts("level     #vertices         #degrees  max_degree");
@@ -387,7 +388,7 @@ void run_test(commandLine parameter) // intend to be pass-by-value manner
 		size_t degree_max = g.get_degree_max(level);
 		printf("#%2u: %14lu %16lu %11lu\n", level, cnt_vertex, cnt_degree, degree_max);
 	}
-	*/
+
 	t.next("Count vertices and degrees");
 
 	if(file_out)
