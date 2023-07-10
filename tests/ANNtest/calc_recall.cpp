@@ -352,7 +352,7 @@ void run_test(commandLine parameter) // intend to be pass-by-value manner
 	const float m_l = parameter.getOptionDoubleValue("-ml", 0.36);
 	const uint32_t m = parameter.getOptionIntValue("-m", 40);
 	const uint32_t efc = parameter.getOptionIntValue("-efc", 60);
-	// const float alpha = parameter.getOptionDoubleValue("-alpha", 1);
+	const float alpha = parameter.getOptionDoubleValue("-alpha", 1);
 	// const float batch_base = parameter.getOptionDoubleValue("-b", 2);
 	// const bool do_fixing = !!parameter.getOptionIntValue("-f", 0);
 	const char *file_out = parameter.getOptionValue("-out");
@@ -371,12 +371,14 @@ void run_test(commandLine parameter) // intend to be pass-by-value manner
 
 	L2SpaceI l2space(dim);
 	auto *appr_alg = new HierarchicalNSW<int>(&l2space, ps.size(), m, efc);
+	auto &g = *appr_alg;
+
+	g.setAlpha(alpha);
 	parlay::parallel_for(0, ps.size(), [&](size_t i){
 		appr_alg->addPoint((void*)ps[i].coord, (size_t)ps[i].id);
 	});
 	t.next("Build index");
 
-	auto &g = *appr_alg;
 	const uint32_t height = g.get_height();
 	printf("Highest level: %u\n", height);
 	puts("level     #vertices         #degrees  max_degree");
