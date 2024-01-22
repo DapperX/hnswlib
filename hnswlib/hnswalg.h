@@ -1190,6 +1190,17 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
         return cur_c;
     }
 
+	uint32_t get_height() const{
+		return maxlevel_;
+	}
+
+	size_t get_degree(labeltype label) const{
+		auto search = label_lookup_.find(label);
+		tableint obj = search->second;
+		int *data = (int*)get_linklist0(obj);
+		return getListCount((linklistsizeint*)data);
+	}
+
 
     std::priority_queue<std::pair<dist_t, labeltype >>
     searchKnn(const void *query_data, size_t k, BaseFilterFunctor* isIdAllowed = nullptr) const {
