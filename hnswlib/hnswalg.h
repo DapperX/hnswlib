@@ -20,6 +20,7 @@ template<typename dist_t>
 class HierarchicalNSW : public AlgorithmInterface<dist_t> {
  public:
 	size_t limit_cmp = 100000000;
+	float alpha = 1.0;
 
     static const tableint MAX_LABEL_OPERATION_LOCKS = 65536;
     static const unsigned char DELETE_MARK = 0x01;
@@ -416,7 +417,7 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
                         fstdistfunc_(getDataByInternalId(second_pair.second),
                                         getDataByInternalId(curent_pair.second),
                                         dist_func_param_);
-                if (curdist < dist_to_query) {
+                if (curdist < dist_to_query*alpha) {
                     good = false;
                     break;
                 }
